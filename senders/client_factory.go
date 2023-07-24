@@ -77,13 +77,13 @@ func (c *configuration) setDefaultPort(port int) {
 	c.TracesPort = port
 }
 
-// NewSender creates Wavefront client
+// NewSender creates Wavefront Sender using the provided URL and Options
 func NewSender(wfURL string, setters ...Option) (Sender, error) {
 	cfg, err := createConfig(wfURL, setters...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create sender config: %s", err)
 	}
-	return newWavefrontClient(cfg)
+	return newSender(cfg)
 }
 
 func createConfig(wfURL string, setters ...Option) (*configuration, error) {
@@ -142,8 +142,7 @@ func createConfig(wfURL string, setters ...Option) (*configuration, error) {
 	return cfg, nil
 }
 
-// newWavefrontClient creates a Wavefront sender
-func newWavefrontClient(cfg *configuration) (Sender, error) {
+func newSender(cfg *configuration) (Sender, error) {
 	client := internal.NewClient(cfg.Timeout, cfg.TLSConfig)
 	metricsReporter := internal.NewReporter(cfg.metricsURL(), cfg.Token, client)
 	tracesReporter := internal.NewReporter(cfg.tracesURL(), cfg.Token, client)
