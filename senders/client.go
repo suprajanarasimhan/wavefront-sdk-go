@@ -22,9 +22,17 @@ type Sender interface {
 	private()
 }
 
+type WavefrontSender interface {
+	Sender
+	PointsValid() int64
+	InternalMetricsRegistryState() bool
+}
 type wavefrontSender struct {
-	reporter         internal.Reporter
-	defaultSource    string
+	reporter      internal.Reporter
+	defaultSource string
+
+	internalRegistryEnabled bool
+
 	pointHandler     *internal.LineHandler
 	histoHandler     *internal.LineHandler
 	spanHandler      *internal.LineHandler
@@ -64,6 +72,14 @@ func newLineHandler(reporter internal.Reporter, cfg *configuration, format, pref
 	}
 
 	return internal.NewLineHandler(reporter, format, cfg.FlushInterval, batchSize, cfg.MaxBufferSize, opts...)
+}
+
+func (sender *wavefrontSender) PointsValid() int64 {
+	return sender.pointsValid.Value()
+}
+
+func (sender *wavefrontSender) InternalMetricsRegistryState() bool {
+	return sender.internalRegistryEnabled
 }
 
 func (sender *wavefrontSender) Start() {

@@ -78,7 +78,7 @@ func (c *configuration) setDefaultPort(port int) {
 }
 
 // NewSender creates Wavefront Sender using the provided URL and Options
-func NewSender(wfURL string, setters ...Option) (Sender, error) {
+func NewSender(wfURL string, setters ...Option) (WavefrontSender, error) {
 	cfg, err := createConfig(wfURL, setters...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create sender config: %s", err)
@@ -142,17 +142,18 @@ func createConfig(wfURL string, setters ...Option) (*configuration, error) {
 	return cfg, nil
 }
 
-func newSender(cfg *configuration) (Sender, error) {
+func newSender(cfg *configuration) (WavefrontSender, error) {
 	client := internal.NewClient(cfg.Timeout, cfg.TLSConfig)
 	metricsReporter := internal.NewReporter(cfg.metricsURL(), cfg.Token, client)
 	tracesReporter := internal.NewReporter(cfg.tracesURL(), cfg.Token, client)
 	sender := &wavefrontSender{
-		defaultSource: internal.GetHostname("wavefront_direct_sender"),
-		proxy:         !cfg.Direct(),
+		defaultSource:           internal.GetHostname("wavefront_direct_sender"),
+		proxy:                   !cfg.Direct(),
+		internalRegistryEnabled: cfg.InternalMetricsEnabled,
 	}
-	if cfg.InternalMetricsEnabled {
-		sender.initializeInternalMetrics(cfg)
-	}
+	//if cfg.InternalMetricsEnabled {
+	sender.initializeInternalMetrics(cfg)
+	//}
 	sender.pointHandler = newLineHandler(metricsReporter, cfg, internal.MetricFormat, "points", sender.internalRegistry)
 	sender.histoHandler = newLineHandler(metricsReporter, cfg, internal.HistogramFormat, "histograms", sender.internalRegistry)
 	sender.spanHandler = newLineHandler(tracesReporter, cfg, internal.TraceFormat, "spans", sender.internalRegistry)

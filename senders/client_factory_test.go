@@ -191,3 +191,9 @@ func TestSDKMetricsTags_Immutability(t *testing.T) {
 	_, ok := cfg2.SDKMetricsTags["baz"]
 	assert.False(t, ok)
 }
+
+func TestSetterInternalMetricsEnabled(t *testing.T) {
+	cfg, err := createConfig("https://localhost", InternalMetricsEnabled(false))
+	require.NoError(t, err)
+	assert.Equal(t, false, cfg.InternalMetricsEnabled)
+}

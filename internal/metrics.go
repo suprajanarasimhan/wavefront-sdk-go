@@ -7,6 +7,10 @@ type MetricCounter struct {
 	value int64
 }
 
+func (c *MetricCounter) Value() int64 {
+	return c.value
+}
+
 func (c *MetricCounter) Inc() {
 	atomic.AddInt64(&c.value, 1)
 }

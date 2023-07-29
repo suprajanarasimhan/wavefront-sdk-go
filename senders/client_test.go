@@ -113,13 +113,40 @@ func TestSendProxy(t *testing.T) {
 	doTest(t, wf)
 }
 
+func TestSendProxyWithInternalMetrics(t *testing.T) {
+	wf, err := senders.NewSender("http://localhost:"+proxyPort,
+		senders.InternalMetricsEnabled(false))
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), wf.PointsValid())
+	doTest(t, wf)
+	assert.Equal(t, int64(1), wf.PointsValid())
+}
 func TestSendProxyWithoutInternalMetrics(t *testing.T) {
 	wf, err := senders.NewSender("http://localhost:"+proxyPort,
 		senders.InternalMetricsEnabled(false))
+
 	require.NoError(t, err)
+	assert.Equal(t, int64(0), wf.PointsValid())
 	doTest(t, wf)
+	assert.Equal(t, int64(0), wf.PointsValid())
 }
 
+func TestSenderAccessToInternalMetricsRegistryStateWhenTrue(t *testing.T) {
+	wf, err := senders.NewSender("http://localhost:"+proxyPort,
+		senders.InternalMetricsEnabled(true))
+
+	require.NoError(t, err)
+	assert.Equal(t, true, wf.InternalMetricsRegistryState())
+}
+
+func TestSenderAccessToInternalMetricsRegistryWhenTrue(t *testing.T) {
+	wf, err := senders.NewSender("http://localhost:"+proxyPort,
+		senders.InternalMetricsEnabled(false))
+
+	require.NoError(t, err)
+	assert.Equal(t, false, wf.InternalMetricsRegistryState())
+}
 func doTest(t *testing.T, wf senders.Sender) {
 	if err := wf.SendMetric("new-york.power.usage", 42422.0, 0, "go_test", map[string]string{"env": "test"}); err != nil {
 		t.Error("Failed SendMetric", err)
