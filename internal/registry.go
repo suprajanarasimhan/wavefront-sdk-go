@@ -20,19 +20,120 @@ type IncrementerDecrementer interface {
 	Dec()
 }
 
+type noOpIncrementerDecrementer struct{}
+
+func (n noOpIncrementerDecrementer) Inc() {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n noOpIncrementerDecrementer) Dec() {
+	//TODO implement me
+	panic("implement me")
+}
+
 type MetricRegistry interface {
 	Start()
 	Stop()
+
+	NewGauge(string, func() int64)
+
 	PointsInvalid() IncrementerDecrementer
 	PointsValid() IncrementerDecrementer
+	PointsDropped() IncrementerDecrementer
+
+	HistogramsInvalid() IncrementerDecrementer
+	HistogramsValid() IncrementerDecrementer
+	HistogramsDropped() IncrementerDecrementer
+
+	SpansInvalid() IncrementerDecrementer
+	SpansValid() IncrementerDecrementer
+	SpansDropped() IncrementerDecrementer
+
+	SpanLogsInvalid() IncrementerDecrementer
+	SpanLogsValid() IncrementerDecrementer
+	SpanLogsDropped() IncrementerDecrementer
+
+	EventsInvalid() IncrementerDecrementer
+	EventsValid() IncrementerDecrementer
+	EventsDropped() IncrementerDecrementer
 }
 
 type NoOpRegistry struct {
+}
 
+func (n *NoOpRegistry) PointsDropped() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) HistogramsInvalid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) HistogramsValid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) HistogramsDropped() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) SpansInvalid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) SpansValid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) SpansDropped() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) SpanLogsInvalid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) SpanLogsValid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) SpanLogsDropped() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) EventsInvalid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) EventsValid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) EventsDropped() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) NewGauge(s string, f func() int64) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (n *NoOpRegistry) PointsInvalid() IncrementerDecrementer {
-	return noOpIncrementerDecrementer
+	return noOpIncrementerDecrementer{}
 }
 
 func (n *NoOpRegistry) PointsValid() IncrementerDecrementer {
@@ -81,6 +182,16 @@ type RealMetricRegistry struct {
 	eventsValid   *DeltaCounter
 	eventsInvalid *DeltaCounter
 	eventsDropped *DeltaCounter
+}
+
+func (registry *RealMetricRegistry) PointsInvalid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (registry *RealMetricRegistry) PointsValid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
 }
 
 type RegistryOption func(*RealMetricRegistry)

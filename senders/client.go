@@ -35,7 +35,7 @@ type wavefrontSender struct {
 	proxy bool
 }
 
-func newLineHandler(reporter internal.Reporter, cfg *configuration, format, prefix string, registry *internal.RealMetricRegistry) *internal.LineHandler {
+func newLineHandler(reporter internal.Reporter, cfg *configuration, format, prefix string, registry internal.MetricRegistry) *internal.LineHandler {
 	opts := []internal.LineHandlerOption{internal.SetHandlerPrefix(prefix), internal.SetRegistry(registry)}
 	batchSize := cfg.BatchSize
 	if format == internal.EventFormat {
@@ -68,14 +68,14 @@ func (sender *wavefrontSender) SendMetric(name string, value float64, ts int64, 
 	}
 	err = sender.pointHandler.HandleLine(line)
 	if err != nil {
-		sender.pointsDropped().Inc()
+		sender.internalRegistry.PointsDropped().Inc()
 	}
 	return err
 }
 
 func (sender *wavefrontSender) SendDeltaCounter(name string, value float64, source string, tags map[string]string) error {
 	if name == "" {
-		sender.pointsInvalid.Inc()
+		sender.internalRegistry.PointsInvalid().Inc()
 		return fmt.Errorf("empty metric name")
 	}
 	if !internal.HasDeltaPrefix(name) {
@@ -91,14 +91,14 @@ func (sender *wavefrontSender) SendDistribution(name string, centroids []histogr
 	hgs map[histogram.Granularity]bool, ts int64, source string, tags map[string]string) error {
 	line, err := histogramInternal.HistogramLine(name, centroids, hgs, ts, source, tags, sender.defaultSource)
 	if err != nil {
-		sender.histogramsInvalid.Inc()
+		sender.internalRegistry.HistogramsInvalid().Inc()
 		return err
 	} else {
-		sender.histogramsValid.Inc()
+		sender.internalRegistry.HistogramsValid().Inc()
 	}
 	err = sender.histoHandler.HandleLine(line)
 	if err != nil {
-		sender.histogramsDropped.Inc()
+		sender.internalRegistry.HistogramsDropped().Inc()
 	}
 	return err
 }
@@ -109,28 +109,28 @@ func (sender *wavefrontSender) SendSpan(name string, startMillis, durationMillis
 	logs := makeSpanLogs(spanLogs)
 	line, err := span.Line(name, startMillis, durationMillis, source, traceId, spanId, parents, followsFrom, makeSpanTags(tags), logs, sender.defaultSource)
 	if err != nil {
-		sender.spansInvalid.Inc()
+		sender.internalRegistry.SpansInvalid().Inc()
 		return err
 	} else {
-		sender.spansValid.Inc()
+		sender.internalRegistry.SpansValid().Inc()
 	}
 	err = sender.spanHandler.HandleLine(line)
 	if err != nil {
-		sender.spansDropped.Inc()
+		sender.internalRegistry.SpansDropped().Inc()
 		return err
 	}
 
 	if len(spanLogs) > 0 {
 		logs, err := span.LogJSON(traceId, spanId, logs, line)
 		if err != nil {
-			sender.spanLogsInvalid.Inc()
+			sender.internalRegistry.SpanLogsInvalid().Inc()
 			return err
 		} else {
-			sender.spanLogsValid.Inc()
+			sender.internalRegistry.SpanLogsValid().Inc()
 		}
 		err = sender.spanLogHandler.HandleLine(logs)
 		if err != nil {
-			sender.spanLogsDropped.Inc()
+			sender.internalRegistry.SpanLogsDropped().Inc()
 		}
 		return err
 	}
@@ -162,14 +162,14 @@ func (sender *wavefrontSender) SendEvent(name string, startMillis, endMillis int
 		line, err = eventInternal.LineJSON(name, startMillis, endMillis, source, tags, setters...)
 	}
 	if err != nil {
-		sender.eventsInvalid.Inc()
+		sender.internalRegistry.EventsInvalid().Inc()
 		return err
 	} else {
-		sender.eventsValid.Inc()
+		sender.internalRegistry.EventsValid().Inc()
 	}
 	err = sender.eventHandler.HandleLine(line)
 	if err != nil {
-		sender.eventsDropped.Inc()
+		sender.internalRegistry.EventsDropped().Inc()
 	}
 	return err
 }
