@@ -30,32 +30,12 @@ type wavefrontSender struct {
 	spanHandler      *internal.LineHandler
 	spanLogHandler   *internal.LineHandler
 	eventHandler     *internal.LineHandler
-	internalRegistry *internal.MetricRegistry
-
-	pointsValid   *internal.DeltaCounter
-	pointsInvalid *internal.DeltaCounter
-	pointsDropped *internal.DeltaCounter
-
-	histogramsValid   *internal.DeltaCounter
-	histogramsInvalid *internal.DeltaCounter
-	histogramsDropped *internal.DeltaCounter
-
-	spansValid   *internal.DeltaCounter
-	spansInvalid *internal.DeltaCounter
-	spansDropped *internal.DeltaCounter
-
-	spanLogsValid   *internal.DeltaCounter
-	spanLogsInvalid *internal.DeltaCounter
-	spanLogsDropped *internal.DeltaCounter
-
-	eventsValid   *internal.DeltaCounter
-	eventsInvalid *internal.DeltaCounter
-	eventsDropped *internal.DeltaCounter
+	internalRegistry internal.MetricRegistry
 
 	proxy bool
 }
 
-func newLineHandler(reporter internal.Reporter, cfg *configuration, format, prefix string, registry *internal.MetricRegistry) *internal.LineHandler {
+func newLineHandler(reporter internal.Reporter, cfg *configuration, format, prefix string, registry *internal.RealMetricRegistry) *internal.LineHandler {
 	opts := []internal.LineHandlerOption{internal.SetHandlerPrefix(prefix), internal.SetRegistry(registry)}
 	batchSize := cfg.BatchSize
 	if format == internal.EventFormat {
@@ -81,14 +61,14 @@ func (sender *wavefrontSender) private() {
 func (sender *wavefrontSender) SendMetric(name string, value float64, ts int64, source string, tags map[string]string) error {
 	line, err := metric.Line(name, value, ts, source, tags, sender.defaultSource)
 	if err != nil {
-		sender.pointsInvalid.Inc()
+		sender.internalRegistry.PointsInvalid().Inc()
 		return err
 	} else {
-		sender.pointsValid.Inc()
+		sender.internalRegistry.PointsValid().Inc()
 	}
 	err = sender.pointHandler.HandleLine(line)
 	if err != nil {
-		sender.pointsDropped.Inc()
+		sender.pointsDropped().Inc()
 	}
 	return err
 }

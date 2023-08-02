@@ -15,8 +15,43 @@ type internalSender interface {
 	SendDeltaCounter(name string, value float64, source string, tags map[string]string) error
 }
 
+type IncrementerDecrementer interface {
+	Inc()
+	Dec()
+}
+
+type MetricRegistry interface {
+	Start()
+	Stop()
+	PointsInvalid() IncrementerDecrementer
+	PointsValid() IncrementerDecrementer
+}
+
+type NoOpRegistry struct {
+
+}
+
+func (n *NoOpRegistry) PointsInvalid() IncrementerDecrementer {
+	return noOpIncrementerDecrementer
+}
+
+func (n *NoOpRegistry) PointsValid() IncrementerDecrementer {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n *NoOpRegistry) Start() {
+}
+
+func (n *NoOpRegistry) Stop() {
+}
+
+func NewNoOpRegistry() MetricRegistry {
+	return &NoOpRegistry{}
+}
+
 // metric registry for internal metrics
-type MetricRegistry struct {
+type RealMetricRegistry struct {
 	source       string
 	prefix       string
 	tags         map[string]string
@@ -26,30 +61,50 @@ type MetricRegistry struct {
 
 	mtx     sync.Mutex
 	metrics map[string]interface{}
+
+	pointsValid   *DeltaCounter
+	pointsInvalid *DeltaCounter
+	pointsDropped *DeltaCounter
+
+	histogramsValid   *DeltaCounter
+	histogramsInvalid *DeltaCounter
+	histogramsDropped *DeltaCounter
+
+	spansValid   *DeltaCounter
+	spansInvalid *DeltaCounter
+	spansDropped *DeltaCounter
+
+	spanLogsValid   *DeltaCounter
+	spanLogsInvalid *DeltaCounter
+	spanLogsDropped *DeltaCounter
+
+	eventsValid   *DeltaCounter
+	eventsInvalid *DeltaCounter
+	eventsDropped *DeltaCounter
 }
 
-type RegistryOption func(*MetricRegistry)
+type RegistryOption func(*RealMetricRegistry)
 
 func SetSource(source string) RegistryOption {
-	return func(registry *MetricRegistry) {
+	return func(registry *RealMetricRegistry) {
 		registry.source = source
 	}
 }
 
 func SetInterval(interval time.Duration) RegistryOption {
-	return func(registry *MetricRegistry) {
+	return func(registry *RealMetricRegistry) {
 		registry.reportTicker = time.NewTicker(interval)
 	}
 }
 
 func SetTags(tags map[string]string) RegistryOption {
-	return func(registry *MetricRegistry) {
+	return func(registry *RealMetricRegistry) {
 		registry.tags = tags
 	}
 }
 
 func SetTag(key, value string) RegistryOption {
-	return func(registry *MetricRegistry) {
+	return func(registry *RealMetricRegistry) {
 		if registry.tags == nil {
 			registry.tags = make(map[string]string)
 		}
@@ -58,13 +113,13 @@ func SetTag(key, value string) RegistryOption {
 }
 
 func SetPrefix(prefix string) RegistryOption {
-	return func(registry *MetricRegistry) {
+	return func(registry *RealMetricRegistry) {
 		registry.prefix = prefix
 	}
 }
 
-func NewMetricRegistry(sender internalSender, setters ...RegistryOption) *MetricRegistry {
-	registry := &MetricRegistry{
+func NewMetricRegistry(sender internalSender, setters ...RegistryOption) *RealMetricRegistry {
+	registry := &RealMetricRegistry{
 		sender:       sender,
 		metrics:      make(map[string]interface{}),
 		reportTicker: time.NewTicker(time.Second * 60),
@@ -76,27 +131,27 @@ func NewMetricRegistry(sender internalSender, setters ...RegistryOption) *Metric
 	return registry
 }
 
-func (registry *MetricRegistry) NewCounter(name string) *MetricCounter {
+func (registry *RealMetricRegistry) NewCounter(name string) *MetricCounter {
 	return registry.getOrAdd(name, &MetricCounter{}).(*MetricCounter)
 }
 
-func (registry *MetricRegistry) NewDeltaCounter(name string) *DeltaCounter {
+func (registry *RealMetricRegistry) NewDeltaCounter(name string) *DeltaCounter {
 	return registry.getOrAdd(name, &DeltaCounter{MetricCounter{}}).(*DeltaCounter)
 }
 
-func (registry *MetricRegistry) NewGauge(name string, f func() int64) *FunctionalGauge {
+func (registry *RealMetricRegistry) NewGauge(name string, f func() int64) *FunctionalGauge {
 	return registry.getOrAdd(name, &FunctionalGauge{value: f}).(*FunctionalGauge)
 }
 
-func (registry *MetricRegistry) NewGaugeFloat64(name string, f func() float64) *FunctionalGaugeFloat64 {
+func (registry *RealMetricRegistry) NewGaugeFloat64(name string, f func() float64) *FunctionalGaugeFloat64 {
 	return registry.getOrAdd(name, &FunctionalGaugeFloat64{value: f}).(*FunctionalGaugeFloat64)
 }
 
-func (registry *MetricRegistry) Start() {
+func (registry *RealMetricRegistry) Start() {
 	go registry.start()
 }
 
-func (registry *MetricRegistry) start() {
+func (registry *RealMetricRegistry) start() {
 	for {
 		select {
 		case <-registry.reportTicker.C:
@@ -107,12 +162,12 @@ func (registry *MetricRegistry) start() {
 	}
 }
 
-func (registry *MetricRegistry) Stop() {
+func (registry *RealMetricRegistry) Stop() {
 	registry.reportTicker.Stop()
 	registry.done <- struct{}{}
 }
 
-func (registry *MetricRegistry) report() {
+func (registry *RealMetricRegistry) report() {
 	registry.mtx.Lock()
 	defer registry.mtx.Unlock()
 
@@ -132,7 +187,7 @@ func (registry *MetricRegistry) report() {
 	}
 }
 
-func (registry *MetricRegistry) getOrAdd(name string, metric interface{}) interface{} {
+func (registry *RealMetricRegistry) getOrAdd(name string, metric interface{}) interface{} {
 	registry.mtx.Lock()
 	defer registry.mtx.Unlock()
 

@@ -151,7 +151,9 @@ func newSender(cfg *configuration) (Sender, error) {
 		proxy:         !cfg.Direct(),
 	}
 	if cfg.InternalMetricsEnabled {
-		sender.initializeInternalMetrics(cfg)
+		sender.internalRegistry = sender.realInternalRegistry(cfg)
+	} else {
+		sender.internalRegistry = internal.NewNoOpRegistry()
 	}
 	sender.pointHandler = newLineHandler(metricsReporter, cfg, internal.MetricFormat, "points", sender.internalRegistry)
 	sender.histoHandler = newLineHandler(metricsReporter, cfg, internal.HistogramFormat, "histograms", sender.internalRegistry)
@@ -171,7 +173,7 @@ func (c *configuration) metricsURL() string {
 	return fmt.Sprintf("%s:%d%s", c.Server, c.MetricsPort, c.Path)
 }
 
-func (sender *wavefrontSender) initializeInternalMetrics(cfg *configuration) {
+func (sender *wavefrontSender) realInternalRegistry(cfg *configuration) internal.MetricRegistry {
 	var setters []internal.RegistryOption
 	setters = append(setters, internal.SetPrefix(cfg.MetricPrefix()))
 	setters = append(setters, internal.SetTag("pid", strconv.Itoa(os.Getpid())))
@@ -181,29 +183,10 @@ func (sender *wavefrontSender) initializeInternalMetrics(cfg *configuration) {
 		setters = append(setters, internal.SetTag(key, value))
 	}
 
-	sender.internalRegistry = internal.NewMetricRegistry(
+	return internal.NewMetricRegistry(
 		sender,
 		setters...,
 	)
-	sender.pointsValid = sender.internalRegistry.NewDeltaCounter("points.valid")
-	sender.pointsInvalid = sender.internalRegistry.NewDeltaCounter("points.invalid")
-	sender.pointsDropped = sender.internalRegistry.NewDeltaCounter("points.dropped")
-
-	sender.histogramsValid = sender.internalRegistry.NewDeltaCounter("histograms.valid")
-	sender.histogramsInvalid = sender.internalRegistry.NewDeltaCounter("histograms.invalid")
-	sender.histogramsDropped = sender.internalRegistry.NewDeltaCounter("histograms.dropped")
-
-	sender.spansValid = sender.internalRegistry.NewDeltaCounter("spans.valid")
-	sender.spansInvalid = sender.internalRegistry.NewDeltaCounter("spans.invalid")
-	sender.spansDropped = sender.internalRegistry.NewDeltaCounter("spans.dropped")
-
-	sender.spanLogsValid = sender.internalRegistry.NewDeltaCounter("span_logs.valid")
-	sender.spanLogsInvalid = sender.internalRegistry.NewDeltaCounter("span_logs.invalid")
-	sender.spanLogsDropped = sender.internalRegistry.NewDeltaCounter("span_logs.dropped")
-
-	sender.eventsValid = sender.internalRegistry.NewDeltaCounter("events.valid")
-	sender.eventsInvalid = sender.internalRegistry.NewDeltaCounter("events.invalid")
-	sender.eventsDropped = sender.internalRegistry.NewDeltaCounter("events.dropped")
 }
 
 // BatchSize set max batch of data sent per flush interval. Defaults to 10,000. recommended not to exceed 40,000.
