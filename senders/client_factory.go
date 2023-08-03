@@ -187,6 +187,7 @@ func (sender *wavefrontSender) realInternalRegistry(cfg *configuration) internal
 		sender,
 		setters...,
 	)
+
 }
 
 // BatchSize set max batch of data sent per flush interval. Defaults to 10,000. recommended not to exceed 40,000.

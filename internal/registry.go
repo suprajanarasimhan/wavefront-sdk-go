@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"sync"
 	"time"
 )
 
@@ -20,26 +19,16 @@ type IncrementerDecrementer interface {
 	Dec()
 }
 
-type noOpIncrementerDecrementer struct{}
-
-func (n noOpIncrementerDecrementer) Inc() {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n noOpIncrementerDecrementer) Dec() {
-	//TODO implement me
-	panic("implement me")
+type Incrementer interface {
+	Inc()
 }
 
 type MetricRegistry interface {
 	Start()
 	Stop()
 
-	NewGauge(string, func() int64)
-
 	PointsInvalid() IncrementerDecrementer
-	PointsValid() IncrementerDecrementer
+	PointsValid() Incrementer
 	PointsDropped() IncrementerDecrementer
 
 	HistogramsInvalid() IncrementerDecrementer
@@ -57,141 +46,7 @@ type MetricRegistry interface {
 	EventsInvalid() IncrementerDecrementer
 	EventsValid() IncrementerDecrementer
 	EventsDropped() IncrementerDecrementer
-}
-
-type NoOpRegistry struct {
-}
-
-func (n *NoOpRegistry) PointsDropped() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) HistogramsInvalid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) HistogramsValid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) HistogramsDropped() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) SpansInvalid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) SpansValid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) SpansDropped() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) SpanLogsInvalid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) SpanLogsValid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) SpanLogsDropped() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) EventsInvalid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) EventsValid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) EventsDropped() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) NewGauge(s string, f func() int64) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) PointsInvalid() IncrementerDecrementer {
-	return noOpIncrementerDecrementer{}
-}
-
-func (n *NoOpRegistry) PointsValid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n *NoOpRegistry) Start() {
-}
-
-func (n *NoOpRegistry) Stop() {
-}
-
-func NewNoOpRegistry() MetricRegistry {
-	return &NoOpRegistry{}
-}
-
-// metric registry for internal metrics
-type RealMetricRegistry struct {
-	source       string
-	prefix       string
-	tags         map[string]string
-	reportTicker *time.Ticker
-	sender       internalSender
-	done         chan struct{}
-
-	mtx     sync.Mutex
-	metrics map[string]interface{}
-
-	pointsValid   *DeltaCounter
-	pointsInvalid *DeltaCounter
-	pointsDropped *DeltaCounter
-
-	histogramsValid   *DeltaCounter
-	histogramsInvalid *DeltaCounter
-	histogramsDropped *DeltaCounter
-
-	spansValid   *DeltaCounter
-	spansInvalid *DeltaCounter
-	spansDropped *DeltaCounter
-
-	spanLogsValid   *DeltaCounter
-	spanLogsInvalid *DeltaCounter
-	spanLogsDropped *DeltaCounter
-
-	eventsValid   *DeltaCounter
-	eventsInvalid *DeltaCounter
-	eventsDropped *DeltaCounter
-}
-
-func (registry *RealMetricRegistry) PointsInvalid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (registry *RealMetricRegistry) PointsValid() IncrementerDecrementer {
-	//TODO implement me
-	panic("implement me")
+	NewGauge(s string, f func() int64) *FunctionalGauge
 }
 
 type RegistryOption func(*RealMetricRegistry)
@@ -233,9 +88,28 @@ func NewMetricRegistry(sender internalSender, setters ...RegistryOption) *RealMe
 	registry := &RealMetricRegistry{
 		sender:       sender,
 		metrics:      make(map[string]interface{}),
-		reportTicker: time.NewTicker(time.Second * 60),
+		reportTicker: time.NewTicker(time.Second * 1),
 		done:         make(chan struct{}),
 	}
+	registry.pointsValid = registry.NewDeltaCounter("points.valid")
+	registry.pointsInvalid = registry.NewDeltaCounter("points.invalid")
+	registry.pointsDropped = registry.NewDeltaCounter("points.dropped")
+
+	registry.histogramsValid = registry.NewDeltaCounter("histograms.valid")
+	registry.histogramsInvalid = registry.NewDeltaCounter("histograms.invalid")
+	registry.histogramsDropped = registry.NewDeltaCounter("histograms.dropped")
+
+	registry.spansValid = registry.NewDeltaCounter("spans.valid")
+	registry.spansInvalid = registry.NewDeltaCounter("spans.invalid")
+	registry.spansDropped = registry.NewDeltaCounter("spans.dropped")
+
+	registry.spanLogsValid = registry.NewDeltaCounter("span_logs.valid")
+	registry.spanLogsInvalid = registry.NewDeltaCounter("span_logs.invalid")
+	registry.spanLogsDropped = registry.NewDeltaCounter("span_logs.dropped")
+
+	registry.eventsValid = registry.NewDeltaCounter("events.valid")
+	registry.eventsInvalid = registry.NewDeltaCounter("events.invalid")
+	registry.eventsDropped = registry.NewDeltaCounter("events.dropped")
 	for _, setter := range setters {
 		setter(registry)
 	}
